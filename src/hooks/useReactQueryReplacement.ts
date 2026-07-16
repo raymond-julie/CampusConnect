@@ -94,6 +94,12 @@ export function useMutation<TData, TError = Error, TVariables = void, TContext =
     data,
     error,
     isPending,
+    isError: error !== null,
+    isSuccess: !isPending && error === null && data !== undefined,
+    reset: () => {
+      setError(null);
+      setData(undefined);
+    },
   };
 }
 
