@@ -32,7 +32,7 @@ serve(async (req) => {
 
     // We enforce that the provided token matches the service role key or a custom cron secret
     const token = authHeader.replace("Bearer ", "");
-    if (token !== supabaseServiceKey) {
+    if (token !=== supabaseServiceKey) {
       return new Response(JSON.stringify({ error: "Unauthorized: Invalid service token" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -52,7 +52,7 @@ serve(async (req) => {
       .select("id, title, event_date, location, clubs(name)")
       .gte("created_at", sevenDaysAgoStr);
 
-    if (eventsError) throw new Error(`Failed to fetch events: ${eventsError.message}`);
+    if (eventsError) { return new Response(JSON.stringify({ error: 'Failed to fetch events' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
 
     // Fetch active discussion posts
     const { data: newPosts, error: postsError } = await supabase
@@ -62,7 +62,7 @@ serve(async (req) => {
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
-    if (postsError) throw new Error(`Failed to fetch posts: ${postsError.message}`);
+    if (postsError) { return new Response(JSON.stringify({ error: 'Failed to fetch posts' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
 
     if ((!newEvents || newEvents.length === 0) && (!newPosts || newPosts.length === 0)) {
       return new Response(
@@ -77,7 +77,7 @@ serve(async (req) => {
     // 3. Fetch Subscribers
     const { data: subscribers, error: subError } = await supabase.rpc("get_digest_subscribers");
 
-    if (subError) throw new Error(`Failed to fetch subscribers: ${subError.message}`);
+    if (subError) { return new Response(JSON.stringify({ error: 'Failed to fetch subscribers' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
 
     if (!subscribers || subscribers.length === 0) {
       return new Response(JSON.stringify({ message: "No subscribers opted into weekly digest." }), {
@@ -98,7 +98,7 @@ serve(async (req) => {
         .replace(/'/g, "&#039;");
     };
 
-    let htmlContent = `<h2>Your CampusConnect Weekly Digest</h2>`;
+    const htmlContent = `<h2>Your CampusConnect Weekly Digest</h2>`;
     htmlContent += `<p>Here's what you missed this week!</p>`;
 
     if (newEvents && newEvents.length > 0) {
@@ -167,11 +167,11 @@ serve(async (req) => {
 
     // Send the email (assuming chunking isn't strictly necessary for < 50 users right now,
     // or Resend supports up to 50 bcc. If it exceeds 50, we should chunk it in production)
-    const chunkSize = 50;
+    const CHUNK_SIZE = 50;
     const results = [];
     const failedChunks = [];
 
-    for (let i = 0; i < emailList.length; i += chunkSize) {
+    for (const email of emailList) {
       const chunk = emailList.slice(i, i + chunkSize);
       // Use Idempotency key per chunk and week to prevent duplicates
       const idempotencyKey = `digest-${sevenDaysAgoStr.substring(0, 10)}-chunk-${i / chunkSize}`;
@@ -188,7 +188,7 @@ serve(async (req) => {
       });
 
       const resData = await res.json();
-      if (!res.ok) {
+      if (res.ok !== true) {
         console.error(`Resend Error for chunk ${i}:`, resData);
         failedChunks.push({ chunkIndex: i, error: resData });
       } else {
